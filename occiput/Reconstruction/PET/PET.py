@@ -1320,7 +1320,6 @@ class PET_Static_Scan():
                         savepath=""):
         if activity is None: 
             activity = self._make_Image3D_activity(ones(self.activity_shape,dtype=float32,order="F")) 
-            subsets_generator = SubsetGenerator(self.binning.N_azimuthal, self.binning.N_axial)
         
         if self.sensitivity is None: 
             sensitivity = self.prompts.copy()
@@ -1334,13 +1333,15 @@ class PET_Static_Scan():
         for i in range(iterations):
             if iterations >= 15:
                 if i == iterations-1: 
-                    print (i+1),"/",iterations
+                    print "iteration ",(i+1),"/",iterations
 		elif i+1 == 1:
                     print "iteration ",(i+1),"/",iterations
                 elif (int32(i+1) / 5) * 5 == i+1: 
-                    print (i+1),"/",iterations
+                    print "iteration ",(i+1),"/",iterations
             else: 
-                print (i+1),"/",iterations
+                print "iteration ",(i+1),"/",iterations
+
+	    subsets_generator = SubsetGenerator(self.binning.N_azimuthal, self.binning.N_axial)
             subsets_matrix = subsets_generator.new_subset(subset_mode, subset_size, azimuthal_range)
             # TODO : introduce OSL prior into osem_step
             activity = self.osem_step(activity, subsets_matrix, attenuation_projection, transformation)
@@ -1678,7 +1679,7 @@ class PET_Multi2D_Scan(PET_Static_Scan):
                         savepath=""):
         if activity is None: 
             activity = self._make_Image3D_activity(ones(self.activity_shape,dtype=float32,order="F")) 
-            subsets_generator = SubsetGenerator(self.binning.N_azimuthal, self.binning.N_axial)
+            
         
         if self.sensitivity is None: 
             sensitivity = self.prompts.copy()
@@ -1692,13 +1693,15 @@ class PET_Multi2D_Scan(PET_Static_Scan):
         for i in range(iterations):
             if iterations >= 15:
                 if i == iterations-1: 
-                    print (i+1),"/",iterations
+                    print "iteration ",(i+1),"/",iterations
 		elif i+1 == 1:
                     print "iteration ",(i+1),"/",iterations
                 elif (int32(i+1) / 5) * 5 == i+1: 
-                    print (i+1),"/",iterations
+                    print "iteration ",(i+1),"/",iterations
             else: 
-                print (i+1),"/",iterations
+                print "iteration ",(i+1),"/",iterations
+
+	    subsets_generator = SubsetGenerator(self.binning.N_azimuthal, self.binning.N_axial)
             subsets_matrix = subsets_generator.new_subset(subset_mode, subset_size, azimuthal_range)
             # TODO : introduce OSL prior into osem_step
             activity = self.osem_step(activity, subsets_matrix, attenuation_projection, transformation)
@@ -2170,7 +2173,7 @@ class PET_Dynamic_Scan(PET_Static_Scan):
         for frame in range(len(self)):
             self[frame].brain_crop(bin_range)
         
-    def osem_reconstruction_old(self, iterations=10, activity=None, subset_mode="random", subset_size=64, transformations=None, attenuation_projection=None,):
+    def osem_reconstruction(self, iterations=10, activity=None, subset_mode="random", subset_size=64, transformations=None, attenuation_projection=None,):
         for frame in range(len(self)):
             if activity is not None: 
                 activity_init = activity[frame]
@@ -2183,13 +2186,13 @@ class PET_Dynamic_Scan(PET_Static_Scan):
                 transformation = transformations[frame]
             else: 
                 transformation = None
-            print "Reconstructing frame %d/%d"%(frame,len(self))
+            print "Reconstructing frame %d / %d"%(frame+1,len(self))
             activity_recon = self[frame].osem_reconstruction(iterations=iterations, \
                              activity=activity_init,attenuation_projection=attenuation_projection, subset_mode=subset_mode, subset_size=subset_size, transformation=transformation)
             self[frame].activity = activity_recon
 
 
-    def osem_reconstruction(self, iterations=10, activity=None, attenuation_projection=None, subset_mode="random", subset_size=64, transformations=None, azimuthal_range=None,):
+    def direct_reconstruction(self, iterations=10, activity=None, attenuation_projection=None, subset_mode="random", subset_size=64, transformations=None, azimuthal_range=None,):
 	self.profiler.reset()
         for i in range(iterations):
 	    print "iteration ",(i+1),"/",iterations
@@ -2218,7 +2221,7 @@ class PET_Dynamic_Scan(PET_Static_Scan):
 		    transformation = transformations[frame]
 		else: 
 		    transformation = None
-		print "Frame %d/%d"%(frame+1,len(self))
+		print "Frame %d / %d"%(frame+1,len(self))
 
 		# TODO : introduce OSL prior into osem_step
 		activity_recon = self[frame].osem_step(activity_init, subsets_matrix, attenuation_projection, transformation)
