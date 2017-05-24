@@ -22,22 +22,25 @@
 import occiput 
 from occiput.Visualization import ipy_table, has_ipy_table, svgwrite, has_svgwrite 
 from occiput.Core.Print import rad_to_deg, deg_to_rad, array_to_string
-from occiput.Core.NiftyPy_wrap import PET_compress_projection, PET_uncompress_projection, PET_initialize_compression_structure #, PET_compress_projection_array 
+from occiput.Core.NiftyPy_wrap import PET_compress_projection, PET_uncompress_projection, PET_initialize_compression_structure, PET_compress_projection_array, PET_get_subset_sparsity, PET_get_subset_projection_array
 
 import h5py 
 import copy
 import os
 import inspect 
 from numpy import isscalar, linspace, int32, uint32, uint16, ones, zeros, pi, sqrt, float32, float64, where, ndarray, nan, tile
-from numpy import inf, asarray, concatenate, fromfile, maximum, exp, asfortranarray, fliplr, transpose 
+from numpy import inf, asarray, concatenate, fromfile, maximum, exp, asfortranarray, fliplr, transpose, ascontiguousarray
 from numpy.random import poisson
 
 
 
 __all__ = ["DEFAULT_BINNING","Binning", "PET_Projection_Sparsity", "PET_Projection",
-          "PET_compress_projection", "PET_uncompress_projection", "PET_initialize_compression_structure","display_PET_Projection_geometry",] #"PET_compress_projection_array"] 
+           "PET_compress_projection", "PET_uncompress_projection", 
+           "PET_initialize_compression_structure","display_PET_Projection_geometry", 
+           "PET_compress_projection_array", "PET_get_subset_sparsity", "PET_get_subset_projection_array"] 
 
-    
+
+
 def display_PET_Projection_geometry(): 
     filename = inspect.getfile(occiput).strip("__init__.pyc")+"Data"+os.sep+"occiput_ray_tracer_PET.png"
     from IPython.display import Image
@@ -216,7 +219,7 @@ class PET_Projection_Sparsity():
 
     def get_N_locations(self): 
         """Returns the number of non-zero entries of the sparse projection data. """
-        return self.locations.shape[1]
+        return int32(self.locations.shape[1])
 
     # Overload math operators 
     def __and__(self, other): 
@@ -245,7 +248,22 @@ class PET_Projection_Sparsity():
         sizes = v - offsets 
         return sizes.reshape(shape)
 
-    def get_subset(self, subset_matrix):
+    def get_subset(self, subset_matrix): 
+        if subset_matrix is None: 
+            return self
+        subset_matrix = int32(subset_matrix)
+        N_locations = self.get_N_locations()
+        N_subsets = subset_matrix.sum()
+        N_locations_sub = int32(self.N_u*self.N_v*N_subsets)  #FIXME Create C function to compute N_locations_sub for compr data
+        offsets_sub, locations_sub = PET_get_subset_sparsity(self.offsets, self.locations, subset_matrix, \
+                                                             self.N_u, self.N_v, N_locations, N_locations_sub)
+        sparsity_sub = PET_Projection_Sparsity(N_subsets, 1, self.N_u, self.N_v, offsets=offsets_sub, locations=locations_sub)
+        return sparsity_sub
+    
+
+        
+    def __get_subset_pure_python_version_deprecated(self, subset_matrix): 
+        """Same as self.get_subset() but does not use C library. It's slower; Use self.get_subset() instead. """
         subset_matrix = int32(subset_matrix)
         indexes = subset_matrix == 1
         N = int32(subset_matrix.sum())
@@ -271,8 +289,10 @@ class PET_Projection_Sparsity():
                     size = sizes[iaz,iax]
                     if ii<N: 
                         offsets_return[0,ii] = offsets_return[0,ii-1]+size
-                    locations_return[:,offsets_return[0,ii-1]:offsets_return[0,ii-1]+size] = locations[:,offsets[iaz,iax]:offsets[iaz,iax] + size]
-        return PET_Projection_Sparsity(N, 1, N_u, N_v , offsets = offsets_return, locations = locations_return)
+                    locations_return[:,offsets_return[0,ii-1]:offsets_return[0,ii-1]+size] = \
+                                     locations[:,offsets[iaz,iax]:offsets[iaz,iax] + size]
+        sparsity_sub = PET_Projection_Sparsity(N, 1, N_u, N_v , offsets = offsets_return, locations = locations_return)
+        return sparsity_sub
 
     def display_geometry(self):
         return display_PET_Projection_geometry()
@@ -280,7 +300,7 @@ class PET_Projection_Sparsity():
 
 class PET_Projection(): 
     """Sparse PET projection object. If offsets=None or locations=None in the constructor, the projection is uncompressed. """
-    def __init__(self, binning, data=None, offsets=None, locations=None, time_bins=None, subsets_matrix=None): 
+    def __init__(self, binning, data=None, offsets=None, locations=None, time_bins=None, subsets_matrix=None, angles=None): 
         """Sparse PET projection object. If offsets=None or locations=None in the constructor, the projection is uncompressed. """
         # The data structure that represents a projection is composed of: 
         #1) Sparsity structure 
@@ -288,10 +308,21 @@ class PET_Projection():
         #3) Size of projection planes - in units of [mm]
         #4) Angular steps in axial and azimuthal directions - in units of [radians] 
         #5) The projection data (e.g. counts)
-        self.binning = binning 
-        self.angles = self.binning.get_angles(subsets_matrix=subsets_matrix)
         
-        sparsity = PET_Projection_Sparsity(binning.N_axial, binning.N_azimuthal, binning.N_u, binning.N_v, offsets, locations)
+        self.binning = binning 
+        
+        if angles is not None: 
+            if subsets_matrix is not None: 
+                raise "PET_Projection(): only one of subsets_matrix can be specified."
+        if angles is not None: 
+            self.angles = angles
+        else: 
+            self.angles = self.binning.get_angles(subsets_matrix=subsets_matrix)
+            
+        N_axial = int32(self.angles.shape[2])
+        N_azimuthal = int32(self.angles.shape[1])
+        
+        sparsity = PET_Projection_Sparsity(N_axial, N_azimuthal, binning.N_u, binning.N_v, offsets, locations)
         if subsets_matrix is not None: 
             self.sparsity = sparsity.get_subset(subsets_matrix)
         else: 
@@ -300,10 +331,7 @@ class PET_Projection():
         if time_bins is None: 
             time_bins = int32([0,1000])   # 1 second if not specified 
         self.time_bins = time_bins
-        
-        N_axial = int32(self.angles.shape[2])
-        N_azimuthal = int32(self.angles.shape[1])
-        
+
         if data is None: 
             data = zeros((N_axial, N_azimuthal, binning.N_u, binning.N_v))
         elif isscalar(data): 
@@ -364,10 +392,10 @@ class PET_Projection():
         if self.is_compressed(): 
             return self
         else: 
-            print "Find the zeros and compress. "
-            print "Not implemented. Please implement me. This needs low level implementation. Right now sparsity comes only from listmode data. "
-            #offsets, locations, data = PET_compress_projection_array(self.data, self.N_axial, self.N_azimuthal, self.N_u, self.N_v)
-    #return PET_Projection( self.get_binning(), data, offsets, locations, self.get_time_bins() )
+            binning = self.get_binning()
+            data, offsets, locations = PET_compress_projection_array(self.data, binning.N_axial, \
+                                                                     binning.N_azimuthal, binning.N_u, binning.N_v)
+            return PET_Projection( self.get_binning(), data, offsets, locations, self.get_time_bins() )
 
     def uncompress_self(self): 
         """Returns an instance of PET_Projection obtained by zero-filling self. The projection object returned is not sparse. """
@@ -532,7 +560,7 @@ class PET_Projection():
             return 
         A = bins_range[0]
         B = bins_range[1]
-        data = self.data[:,:,A:B,:]
+        data = ascontiguousarray( self.data[:,:,A:B,:] )
         self.binning.size_u = (1.0*self.binning.size_u) / self.binning.N_u * (B-A)
         self.binning.N_u = B-A
         return PET_Projection(self.binning, data=data, time_bins=self.time_bins) 
@@ -609,13 +637,25 @@ class PET_Projection():
         return out
 
     def get_subset(self, subsets_matrix):
-        indexes = subsets_matrix.flatten() == 1
-        data=self.data.swapaxes(0,1).reshape((self.sparsity.N_axial*self.sparsity.N_azimuthal,self.binning.N_u,self.binning.N_v))[indexes,:,:]
-        #sparsity = self.sparsity.get_subset(subsets_matrix)
-        #offsets = sparsity.offsets
-        #locations = sparsity.locations 
-        return PET_Projection(self.binning, data, self.sparsity.offsets, self.sparsity.locations, self.time_bins, subsets_matrix)
+        if subsets_matrix is None: 
+            return self
+        subsets_matrix = int32(subsets_matrix)
+        N_locations = self.get_N_locations()
+        N_subsets = subsets_matrix.sum()
+        N_locations_sub = int32(self.binning.N_u*self.binning.N_v*N_subsets) #FIXME Create C function to compute N_locations_sub for compr data
+        data_sub,offsets_sub,locations_sub  = PET_get_subset_projection_array(self.data, subsets_matrix, self.sparsity.offsets, self.sparsity.locations, self.binning.N_u, self.binning.N_v, N_locations, N_locations_sub)
+        angles = self.binning.get_angles(subsets_matrix=subsets_matrix)
+        projection = PET_Projection(self.binning, data_sub, offsets_sub, locations_sub, self.time_bins, angles=angles) 
+        return projection
 
+    def __get_subset_pure_python_version_deprecated(self, subsets_matrix):
+        subsets_matrix = int32(subsets_matrix)
+        indexes = subsets_matrix.flatten() == 1
+        data=self.data.swapaxes(0,1).reshape((self.sparsity.N_axial*self.sparsity.N_azimuthal, \
+                                              self.binning.N_u,self.binning.N_v))[indexes,:,:]
+        projection = PET_Projection(self.binning, data, self.sparsity.offsets, self.sparsity.locations, \
+                                              self.time_bins, subsets_matrix)    
+        return projection
 
     def display_geometry(self):
         return display_PET_Projection_geometry()

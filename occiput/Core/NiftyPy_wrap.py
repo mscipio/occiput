@@ -19,6 +19,7 @@ try:
     from NiftyPy.NiftyRec import TR_transform_grid as            __TR_transform_grid 
     from NiftyPy.NiftyRec import PET_project_compressed, PET_backproject_compressed 
     from NiftyPy.NiftyRec import PET_compress_projection, PET_uncompress_projection, PET_initialize_compression_structure
+    from NiftyPy.NiftyRec import PET_compress_projection_array, PET_get_subset_sparsity, PET_get_subset_projection_array
     from NiftyPy.NiftyRec import SPECT_project_parallelholes, SPECT_backproject_parallelholes 
     from NiftyPy.NiftyRec import gpu_set, gpu_reset, gpu_list, gpu_exists
 except: 

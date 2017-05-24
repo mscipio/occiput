@@ -19,7 +19,7 @@ from interfile import Interfile
 import h5py
 import os
 from numpy import isscalar, linspace, int32, uint32, ones, zeros, pi, sqrt, float32, float64, where, ndarray, nan
-from numpy import inf, asarray, concatenate, fromfile, maximum, exp, asfortranarray, fliplr, transpose  
+from numpy import inf, asarray, concatenate, fromfile, maximum, exp, asfortranarray, fliplr, transpose, ascontiguousarray
 
 
 def import_interfile_projection_data(headerfile='', datafile='',load_time=False):   #FIXME: this should be in the Interfile package
@@ -59,6 +59,7 @@ def import_interfile_projection_data(headerfile='', datafile='',load_time=False)
                 duration = int32([0,0])
         else: 
             duration = int32([0,0])
+        data = float32(data)
         return data, duration
 
 def import_interfile_projection(headerfile, binning, michelogram, datafile='' ,invert=False, vmin=0.00, vmax=1e10,load_time=False): 
@@ -157,7 +158,9 @@ def export_interfile_projection(sinogram_data_file, projection_data, binning, mi
 def import_PET_Projection( filename ): 
     h5f = h5py.File(filename,'r') 
     offsets   = asarray( h5f['offsets'],order='F' ) 
+    offsets = ascontiguousarray( offsets ) 
     locations = asarray( h5f['locations'],order='F'  )
+    locations = asfortranarray( locations )
     try: 
         data      = asarray( h5f['data'],order='F'  )
     except: 
@@ -175,5 +178,6 @@ def import_PET_Projection( filename ):
                            'n_u':                    int32( h5f['n_u'] ),
                            'n_v':                    int32( h5f['n_v'] ) })
     h5f.close() 
+    data = ascontiguousarray( float32(data) )
     return PET_Projection(binning, data, offsets, locations, time_bins) 
 
