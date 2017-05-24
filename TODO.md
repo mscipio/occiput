@@ -1,5 +1,7 @@
 # <span style="color:blue">TODO list : Occiput - Tomographic Vision - version 1.1</span>
 
+- ~~<span>**ADD**: Add functionality to save EACH osem iteration to PET_Static_Scan and PET_Multi2D objects</span>~~
+- <span>**ADD/CHANGE**: modify PET_Dynamic_Scan.osem_reconstruction so that it synchronizes the update of each time frame, instead of sequentially reconstructing each one of them</span>
 - <span>**BUG FIX**: throw errors if loading proiections of a different shape/size of the target pet object</span>
 - <span>**ADD**: simulation function to Pet_Dynamic_Scan object (ability to ptoject a 4D dynamic phantom)</span>
 - <span>**ADD**: OSL algorithm for image reconstruction with smoothing or kinetic prior</span>
