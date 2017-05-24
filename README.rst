@@ -1,6 +1,6 @@
-============================
-Occiput - Tomographic Vision
-============================
+==========================================
+Occiput - Tomographic Vision - version 1.1
+==========================================
 
 Tomographic reconstruction software for PET, PET-MRI and SPECT in 2D, 3D (volumetric) and 4D (spatio-temporal) in Python. 
 
