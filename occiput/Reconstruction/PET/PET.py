@@ -1671,32 +1671,52 @@ class PET_Multi2D_Scan(PET_Static_Scan):
         if self.prompts_duration is None: 
             self.prompts_duration = ones([self.n_slices+1,])
 
-    def osem_reconstruction(self, iterations=10, activity=None, subset_mode="random", subset_size=64, transformation=None):
+    def osem_reconstruction(self, iterations=10, activity=None, attenuation_projection=None, subset_mode="random",
+                        subset_size=64, transformation=None, azimuthal_range=None, SaveAll = False, KineticPrior = False, SaveDisk = False,
+                        savepath=""):
         if activity is None: 
             activity = self._make_Image3D_activity(ones(self.activity_shape,dtype=float32,order="F")) 
-        subsets_generator = SubsetGenerator(self.binning.N_azimuthal, self.binning.N_axial)
+            subsets_generator = SubsetGenerator(self.binning.N_azimuthal, self.binning.N_axial)
         
         if self.sensitivity is None: 
             sensitivity = self.prompts.copy()
             sensitivity.data = 0.0*sensitivity.data+1
             self.set_sensitivity(sensitivity)
         
-        self.profiler.reset()
+        if SaveAll:
+            activity_all = ones((self.activity_shape[0],self.activity_shape[1],self.activity_shape[2],iterations),dtype=float32)
+        
+	self.profiler.reset()
         for i in range(iterations):
-
             if iterations >= 15:
-                if i == 1:
-                    print i,"/",iterations
-                elif i == iterations-1: 
-                    print i,"/",iterations
-                elif (int32(i) / 5) * 5 == i: 
-                    print i,"/",iterations
+                if i == iterations-1: 
+                    print (i+1),"/",iterations
+                elif (int32(i+1) / 5) * 5 == i+1: 
+                    print (i+1),"/",iterations
             else: 
-                print i,"/",iterations
-                
-            subsets_matrix = subsets_generator.new_subset(subset_mode, subset_size)
-            activity = self.osem_step(activity, subsets_matrix, transformation)
-        return activity
+                print (i+1),"/",iterations
+            subsets_matrix = subsets_generator.new_subset(subset_mode, subset_size, azimuthal_range)
+            # TODO : introduce OSL prior into osem_step
+            activity = self.osem_step(activity, subsets_matrix, attenuation_projection, transformation)
+            if SaveAll:
+                temp = activity.data
+                temp = flip(temp,0)  #U-D
+                temp = flip(temp,1)  #L-R
+                #temp = flip(temp,2)  #Zreverse
+                activity_all[:,:,:,i] = temp
+                del temp
+            if SaveDisk:
+                activity.save_to_file(savepath+'activity_recon_%d.nii'%i)
+            if KineticPrior:
+		# TODO
+                # call kinetic model fitter module
+                # update activity before next iteration
+                pass
+        
+        if SaveAll:
+            return activity, activity_all
+        else:
+            return activity
     
     def mlem_reconstruction(self, iterations=10, activity=None, transformation=None):
         if activity is None: 
