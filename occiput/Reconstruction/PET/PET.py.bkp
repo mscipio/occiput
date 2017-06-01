@@ -1270,9 +1270,9 @@ class PET_Static_Scan():
             progress_bar.set_percentage(100.0) 
         return attenuation
     
-    def estimate_activity(self, gradient_prior_func=None, activity__=None, attenuation=None, iterations=DEFAULT_RECON_ITERATIONS, sparsity=None,
+    def estimate_activity(self, activity=None, attenuation=None, iterations=DEFAULT_RECON_ITERATIONS, sparsity=None,
                           subset_size=DEFAULT_SUBSET_SIZE, subset_mode='random', epsilon=None, subsets_matrix=None,
-                          azimuthal_range=None, show_progressbar=True, gradient_prior_args=()): 
+                          azimuthal_range=None, show_progressbar=True): 
         # Optionally use the specified value of epsilon (small number added to the denominator is divisions)
         if epsilon is None: 
             epsilon = EPS 
@@ -1296,27 +1296,24 @@ class PET_Static_Scan():
         else: 
             self.attenuation_projection = 1.0
         
-        if activity__ is None: 
-            activity__ = self._make_Image3D_activity(ones(self.activity_shape,dtype=float32,order="F")) 
-        # FIXME: use transformation - also notice that roi_activity is always set to None here
+        if activity is None: 
+            activity = self._make_Image3D_activity(ones(self.activity_shape,dtype=float32,order="F")) 
+        # FIXME: use transformation - also notice that transformation_activity is always set to None here
     
         for iteration in range(iterations): 
-            [gradient1, gradient2, subsets_matrix] = self.get_gradient_activity(activity__,self.attenuation_projection,
-                                                                         roi_activity=None, 
+            [gradient1, gradient2, subsets_matrix] = self.get_gradient_activity(activity,self.attenuation_projection,
+                                                                         transformation_activity=None, 
                                                                          sparsity=sparsity,
                                                                          duration_ms=duration_ms, subset_size=subset_size,
                                                                          subset_mode=subset_mode, subsets_matrix=subsets_matrix,
                                                                          azimuthal_range=azimuthal_range,
                                                                          separate_additive_terms=True, epsilon=epsilon) 
-            if gradient_prior_func is not None: 
-                activity__ = activity__ * gradient2 / (gradient1+epsilon-gradient_prior_func(activity__, *gradient_prior_args)) 
-            else: 
-                activity__ = activity__ * gradient2 / (gradient1+epsilon) 
+            activity = activity * gradient2 / (gradient1+epsilon) 
             if show_progressbar: 
                 progress_bar.set_percentage((iteration+1)*100.0/iterations) 
         if show_progressbar: 
             progress_bar.set_percentage(100.0) 
-        return activity__ 
+        return activity
 
     def osem_reconstruction(self, iterations=10, activity=None, attenuation_projection=None, subset_mode="random",
                         subset_size=64, transformation=None, azimuthal_range=None, SaveAll = False, KineticPrior = False, SaveDisk = False,
@@ -1382,24 +1379,8 @@ class PET_Static_Scan():
             subsets_matrix = None
             activity = self.osem_step(activity, subsets_matrix, attenuation_projection, transformation)
         return activity
-
-    ################ Gradient prior terms for OSL version of osem_step #####################
-    def kinetic_model_prior(activity_, model, sigma, sf):
-	gradient = (model - sf*activity_.data)/sigma**2 # derivative of a gaussian prior that enforces similarity between recon and fitting 
-	return gradient
-
-    def smoothness_prior(activity_, importance): 
-	#kernel = ones((3,3,1))
-	#kernel[1,1] = -8.0
-	kernel = asarray([[[0,0,0],[0,1,0],[0,0,0]],[[0,1,0],[1,-6,1],[0,1,0]],[[0,0,0],[0,1,0],[0,0,0]]]) # 3D laplacian operator
-	gradient = ndimage.convolve(activity_.data, kernel, mode='constant', cval=0.0)
-	return importance*gradient 
-
-    def kinetic_plus_smoothing_prior(activity_, sources,sigma,sf, importance):
-	return compute_lambda(activity_, sources, sigma, sf) + smoothness(activity_, importance)
-    #######################################################################################
-
-    def osem_step(self, activity, subsets_matrix=None, attenuation_projection=None, transformation=None, gradient_prior_type = None, gradient_prior_args = ()): 
+    
+    def osem_step(self, activity, subsets_matrix=None, attenuation_projection=None, transformation=None): 
         epsilon = 1e-08
         
         self.profiler.rec_iteration()
@@ -1477,24 +1458,9 @@ class PET_Static_Scan():
                     mscatter = mscatter * duration / self.scatter.get_duration()
                     self.profiler.rec_compose_scatter() 
 
-	if gradient_prior_type is not None:
-	    if gradient_prior_type == "smooth":
-		gradient_prior_func = self.smoothness_prior
-	    elif gradient_prior_type == "kinetic":
-		gradient_prior_func = self.kinetic_model_prior
-	    elif gradient_prior_type == "both":
-		gradient_prior_func = self.kinetic_plus_smoothing_prior
-	    else:
-		gradient_prior_func = None
-
-
         #print duration, alpha
         self.profiler.tic() 
         norm = self.backproject_activity(sens_x_att * alpha * duration, transformation=transformation)
-	if gradient_prior_func is not None: 
-            update2 = norm + epsilon - gradient_prior_func(activity, *gradient_prior_args)) 
-        else: 
-            update2 = norm + epsilon 
         self.profiler.rec_backprojection_norm_total() 
     
         self.profiler.tic()
@@ -1545,7 +1511,7 @@ class PET_Static_Scan():
                 self.profiler.rec_backprojection_activity_total()
     
         self.profiler.tic() 
-        activity = ( activity / update2 ) * update1
+        activity = (activity /(norm+epsilon)) * update1
         self.profiler.rec_update() 
 
         return activity
@@ -1771,29 +1737,8 @@ class PET_Multi2D_Scan(PET_Static_Scan):
             subsets_matrix = None
             activity = self.osem_step(activity, subsets_matrix, transformation)
         return activity
-
-    # TODO: Gradient prior terms for OSL version of osem_step
-    def kinetic_model_prior(activity_, model, sigma, sf):
-	Nx,Ny,frames = activity_.data.shape
-	voxels = Nx*Ny
-	a_vec = activity_.data.reshape([voxels,frames])
-	l = zeros([voxels,frames]) 
-	for t in range(frames):
-	    for v in range(voxels):
-		l[v,t] = (model[v,t]-sf*a_vec[v,t])/sigma**2    
-	return l.reshape(Nx,Ny,frames)
-
-    def smoothness_prior(activity_, importance): 
-	kernel = ones((3,3,1))
-	kernel[1,1] = -8.0
-	gradient = ndimage.convolve(activity_.data, kernel, mode='constant', cval=0.0)
-	return importance*gradient 
     
-
-    def kinetic_plus_smoothing_prior(activity_, sources,sigma,sf, importance):
-	return compute_lambda(activity_, sources, sigma, sf) + smoothness(activity_, importance)
-    
-    def osem_step(self, activity, subsets_matrix, transformation,gradient_prior_type = None, gradient_prior_args = ())): 
+    def osem_step(self, activity, subsets_matrix, transformation): 
         epsilon = 1e-08
         
         prompts = self.prompts 
@@ -1833,21 +1778,7 @@ class PET_Multi2D_Scan(PET_Static_Scan):
             # Scale scatter: this is used in dynamic and kinetic imaging, when scatter is calculated using the ativity for a time period longer than the current frame: 
             mscatter = mscatter * prompts_duration / scatter_duration
 
-	if gradient_prior_type is not None:
-	    if gradient_prior_type == "smooth":
-		gradient_prior_func = self.smoothness_prior
-	    elif gradient_prior_type == "kinetic":
-		gradient_prior_func = self.kinetic_model_prior
-	    elif gradient_prior_type == "both":
-		gradient_prior_func = self.kinetic_plus_smoothing_prior
-	    else:
-		gradient_prior_func = None
-
         norm = self.backproject_activity(sens_x_att * alpha * prompts_duration, transformation=transformation)
-	if gradient_prior_func is not None: 
-            update2 = norm + epsilon - gradient_prior_func(activity, *gradient_prior_args)) 
-        else: 
-            update2 = norm + epsilon 
     
         projection = self.project_activity(activity, subsets_matrix = subsets_matrix, transformation=transformation)
     
@@ -1864,7 +1795,7 @@ class PET_Multi2D_Scan(PET_Static_Scan):
                 update1 = self.backproject_activity(prompts/(projection + epsilon), transformation=transformation)
     
         #activity = activity - gradient1
-        activity = (activity / update2 ) * update1
+        activity = (activity /(norm+epsilon)) * update1
 
         return activity    
         
@@ -2242,7 +2173,7 @@ class PET_Dynamic_Scan(PET_Static_Scan):
         for frame in range(len(self)):
             self[frame].brain_crop(bin_range)
         
-    def osem_reconstruction(self, iterations=10, activity=None, subset_mode="random", subset_size=64, transformations=None, attenuation_projection=None, azimuthal_range=None):
+    def osem_reconstruction(self, iterations=10, activity=None, subset_mode="random", subset_size=64, transformations=None, attenuation_projection=None,):
         for frame in range(len(self)):
             if activity is not None: 
                 activity_init = activity[frame]
@@ -2257,11 +2188,11 @@ class PET_Dynamic_Scan(PET_Static_Scan):
                 transformation = None
             print "Reconstructing frame %d / %d"%(frame+1,len(self))
             activity_recon = self[frame].osem_reconstruction(iterations=iterations, \
-                             activity=activity_init,attenuation_projection=attenuation_projection, subset_mode=subset_mode, subset_size=subset_size, transformation=transformation, azimuthal_range=None)
+                             activity=activity_init,attenuation_projection=attenuation_projection, subset_mode=subset_mode, subset_size=subset_size, transformation=transformation)
             self[frame].activity = activity_recon
 
 
-    def direct_reconstruction(self, iterations=10, activity=None, attenuation_projection=None, subset_mode="random", subset_size=64, transformations=None, azimuthal_range=None, gradient_prior_type = None, gradient_prior_args = ()):
+    def direct_reconstruction(self, iterations=10, activity=None, attenuation_projection=None, subset_mode="random", subset_size=64, transformations=None, azimuthal_range=None,):
 	self.profiler.reset()
         for i in range(iterations):
 	    print "iteration ",(i+1),"/",iterations
@@ -2293,11 +2224,8 @@ class PET_Dynamic_Scan(PET_Static_Scan):
 		print "Frame %d / %d"%(frame+1,len(self))
 
 		# TODO : introduce OSL prior into osem_step
-		# TODO : pick the current time frame from the fitted volume to use in the OSL prior
-		activity_recon = self[frame].osem_step(activity_init, subsets_matrix, attenuation_projection, transformation, gradient_prior_type = gradient_prior_type, gradient_prior_args = *gradient_prior_args)
+		activity_recon = self[frame].osem_step(activity_init, subsets_matrix, attenuation_projection, transformation)
 		self[frame].activity = activity_recon
-
-	     # TODO : here is where you need to fit the volume using kinetic model
     
     def osem_reconstruction_4D(self, iterations=10, activity=None, subset_mode="random", subset_size=64, transformations=None):
         if activity is None: 
