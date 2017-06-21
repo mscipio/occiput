@@ -104,6 +104,8 @@ def helptext():
 	print 	"--saveDisk 1"
 	print "================================================================================================"
 
+#TODO: we still have problems with scaling randoms. Untill they are solved we are using the default pet.import_randoms fanction
+# instead of this. This was created for testing purposes
 def import_randoms(pet, filename, datafile='', duration_ms=None):
         filetype = guess_file_type_by_name(filename)
         if filetype is "interfile_projection_header":
