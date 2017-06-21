@@ -53,10 +53,7 @@ def osem_reconstruction(pet, iterations=10, activity=None, attenuation_projectio
                 # call kinetic model fitter module
                 # update activity before next iteration
                 pass
-
-
 	activity.save_to_file(savepath+'PET_RECON_OCCIPUT.nii')
-
         if SaveAll:
             return activity, activity_all
         else:
@@ -129,10 +126,10 @@ def main(argv):
 	#check input options
 	datapath = os.getcwd()
 	out_dir = datapath+'occiput_out/'
-	subs_num=21
-	iter_num=3
+	subs_num = 21
+	iter_num = 3
 	SaveAll = False
-	SaveDisk=False
+	SaveDisk = False
 	Nx = 344
 	Ny = 344
 	Nz = 127
@@ -337,11 +334,11 @@ def main(argv):
 	subplot(132); imshow(temp[80,:,:].T,vmax = 14.0, cmap='hot'),title("OCCIPUT")
 	subplot(133); imshow(temp[:,:,70],vmax = 14.0, cmap='hot')
 
-	#activity_Siemens = import_interfile_volume(datapath+'recon_000_000.v.hdr')
-	#figure(figsize=[20,20])
-	#subplot(131); imshow(np.fliplr(activity_Siemens.data[:,activity_Siemens.shape[0]/2-5,:].transpose()),vmax = 5.0, cmap='hot')
-	#subplot(132); imshow(np.fliplr(activity_Siemens.data[activity_Siemens.shape[1]/2,:,:].transpose()),vmax = 5.0, cmap='hot'),title("SIEMENS")
-	#subplot(133); imshow(np.fliplr(np.flipud(activity_Siemens.data[:,:,activity_Siemens.shape[2]/2])),vmax = 5.0, cmap='hot')
+	activity_Siemens = import_interfile_volume(datapath+'recon_000_000.v.hdr')
+	figure(figsize=[20,20])
+	subplot(131); imshow(np.fliplr(activity_Siemens.data[:,activity_Siemens.shape[0]/2-5,:].transpose()),vmax = 5.0, cmap='hot')
+	subplot(132); imshow(np.fliplr(activity_Siemens.data[activity_Siemens.shape[1]/2,:,:].transpose()),vmax = 5.0, cmap='hot'),title("SIEMENS")
+	subplot(133); imshow(np.fliplr(np.flipud(activity_Siemens.data[:,:,activity_Siemens.shape[2]/2])),vmax = 5.0, cmap='hot')
 	"""
 
 
