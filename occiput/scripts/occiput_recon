@@ -1,7 +1,7 @@
 #! /usr/pubsw/packages/occiput/dependencies/python/bin/occiput/bin/python2.7
 
-## Reconstruction of brain FDG PET acquired on Siemens Biograph mMR 
-# Load listmode data of a brain FDG scan acquired on Siemens Biograph mMR and reconstruct using OSEM. Compare the reconstruction with the reconstruction obtained with the Siemens E7 Tools using the same parameters of the OSEM algorithm. 
+## Reconstruction of brain FDG PET acquired on Siemens Biograph mMR
+# Load listmode data of a brain FDG scan acquired on Siemens Biograph mMR and reconstruct using OSEM. Compare the reconstruction with the reconstruction obtained with the Siemens E7 Tools using the same parameters of the OSEM algorithm.
 
 import sys, getopt
 import occiput
@@ -11,9 +11,9 @@ from occiput.DataSources.FileSources import import_interfile_volume
 from occiput.DataSources.FileSources import import_nifti
 from occiput.Reconstruction.PET.PET_subsets import SubsetGenerator
 from occiput.DataSources.FileSources import import_interfile_projection, export_interfile_projection
-from occiput.DataSources.FileSources import guess_file_type_by_name 
-from occiput.DataSources.FileSources import import_PET_Projection 
-from interfile import Interfile 
+from occiput.DataSources.FileSources import guess_file_type_by_name
+from occiput.DataSources.FileSources import import_PET_Projection
+from interfile import Interfile
 from matplotlib.pyplot import *
 from numpy import *
 from pathlib import Path
@@ -23,18 +23,18 @@ import os
 def osem_reconstruction(pet, iterations=10, activity=None, attenuation_projection=None, subset_mode="random",
                         subset_size=64, transformation=None, SaveAll = False, KineticPrior = False, SaveDisk = False,
                         savepath=""):
-	if activity is None: 
-            activity = pet._make_Image3D_activity(ones(pet.activity_shape,dtype=float32,order="F")) 
+	if activity is None:
+            activity = pet._make_Image3D_activity(ones(pet.activity_shape,dtype=float32,order="F"))
             subsets_generator = SubsetGenerator(pet.binning.N_azimuthal, pet.binning.N_axial)
-        
-	if pet.sensitivity is None: 
+
+	if pet.sensitivity is None:
             sensitivity = pet.prompts.copy()
             sensitivity.data = 0.0*sensitivity.data+1
             pet.set_sensitivity(sensitivity)
-        
+
 	if SaveAll:
             activity_all = ones((pet.activity_shape[0],pet.activity_shape[1],pet.activity_shape[2],iterations),dtype=float32)
-        
+
 	for i in range(iterations):
             print str(i+1)+"/"+str(iterations)
             subsets_matrix = subsets_generator.new_subset(subset_mode, subset_size)
@@ -54,9 +54,9 @@ def osem_reconstruction(pet, iterations=10, activity=None, attenuation_projectio
                 # update activity before next iteration
                 pass
 
-		
+
 	activity.save_to_file(savepath+'PET_RECON_OCCIPUT.nii')
-        
+
         if SaveAll:
             return activity, activity_all
         else:
@@ -77,7 +77,7 @@ def helptext():
 	print "................................................................................................"
 	print "occiput_recon -i <inputpath>                 | PATH TO OCCIPUT-READY RAW DATA"
 	print "              -o <outputpath>                | PATH FOR RECONSTRUCTED IMAGE (can create folder)"
-	print "              -ts <startTime [min]>          | (TODO) RECON OPTS: time frame starting point" 
+	print "              -ts <startTime [min]>          | (TODO) RECON OPTS: time frame starting point"
 	print "              -te <endTime [min]>            | (TODO) RECON OPTS: time frame ending point"
 	print "              -s <subsetsNum>                | RECON OPTS: number of OSEM subsets"
 	print "              -r <iterNum>                   | RECON OPTS: number of iteration (Siemens-like)"
@@ -92,7 +92,7 @@ def helptext():
 	print "................................................................................................"
 	print "EXAMPLE:"
 	print "................................................................................................"
-	print 	"occiput_recon \\" 
+	print 	"occiput_recon \\"
 	print 	"-i '/space/mercury/2/users/occiput/data/PET_data/Kinetic/FDG_mMR/s126/' \\ "
 	print 	"-o '/space/mercury/2/users/occiput/data/PET_data/Kinetic/FDG_mMR/s126/out_test_cmd_line/' \\"
 	print 	"-s 10 \\ "
@@ -101,25 +101,25 @@ def helptext():
 	print 	"--Ny 150 \\ "
 	print 	"--Nz 127 \\ "
 	print 	"--idGPU 0 \\"
-	print 	"--saveDisk 1" 
+	print 	"--saveDisk 1"
 	print "================================================================================================"
 
-def import_randoms(pet, filename, datafile='', duration_ms=None): 
-        filetype = guess_file_type_by_name(filename) 
-        if filetype is "interfile_projection_header": 
+def import_randoms(pet, filename, datafile='', duration_ms=None):
+        filetype = guess_file_type_by_name(filename)
+        if filetype is "interfile_projection_header":
              projection = import_interfile_projection(filename, pet.binning, pet.scanner.michelogram, datafile)
-        elif filetype is "h5": 
+        elif filetype is "h5":
              projection = import_PET_Projection(filename)
-        else: 
+        else:
             print "PET.import_randoms: file type unknown. "
             return
         projection.data = float32(projection.data)
-        if duration_ms is not None: 
+        if duration_ms is not None:
 			print "duration_ms = " + str(duration_ms)
 			print "scale factor = " + str(pet.prompts.get_duration() / (1.0*duration_ms))
 			projection.data = projection.data * pet.prompts.get_duration() / (1.0*duration_ms)
-        if pet._use_compression is False: 
-            projection = projection.uncompress_self() 
+        if pet._use_compression is False:
+            projection = projection.uncompress_self()
         pet.set_randoms(projection)
 
 def main(argv):
@@ -189,19 +189,19 @@ def main(argv):
 			SaveDisk = str2bool(arg)
 		elif opt in ("--idGPU"):
 			idGPU = int32(arg)
-	
+
 	print "\n\n\n=========================================================="
 	print "Input: " + datapath
 	print "Output: " + out_dir
 	#print "Save All Iteration on Workspace? " + str(SaveAll) + " " + str(type(SaveAll))
-	print "Save All Iteration on Disk? " + str(SaveDisk) + " " + str(type(SaveDisk)) 
+	print "Save All Iteration on Disk? " + str(SaveDisk) + " " + str(type(SaveDisk))
 	print "\n------------------- RECONSTRUCTION ---------------------"
 	print "#Subsets: " + str(subs_num)
 	print "#TotIterations (#iter * #subs) : " + str(iter_num*subs_num)
 	print "Shape of reconstructed activity: " + str((Nx,Ny,Nz))
 	print "Pixel size (mm): " + str((Rx,Ry,Rz))
 	print "Size of FOV (mm): " + str((Nx*Rx,Ny*Ry,Nz*Rz))
-	print "Working on GPU #" + str(idGPU) 
+	print "Working on GPU #" + str(idGPU)
 	print "=========================================================\n\n"
 
 	################## Instantiate PET static scan object for PET reconstruction:
@@ -216,8 +216,6 @@ def main(argv):
 	occiput.Core.NiftyPy_wrap.gpu_set(gpu_id=idGPU)
 
 	################## LOAD MEASUREMENT DATA - 90 MIN
-	#datapath = '/local_mount/space/mercury/2/users/occiput/data/PET_data/Kinetic/FDG_mMR/s126/'
-
 	listmode_file = glob(datapath+'PET*.l.hdr')[0]
 	sensitivity_file = glob(datapath+'n*.h33')[0]
 	smooth_random_file = glob(datapath+'s*.h33')[0]
@@ -225,8 +223,8 @@ def main(argv):
 	human_attenuation_file = glob(datapath+'*umap.v.hdr')[0]
 	hw_attenuation_file = glob(datapath+'*umap-hardware.v.hdr')[0]
 
-	################## Display total scan duration: 
-	header = Interfile.load(listmode_file) 
+	################## Display total scan duration:
+	header = Interfile.load(listmode_file)
 	scan_duration = header['image duration']['value']/60
 	if te is None:
 		te = scan_duration
@@ -236,11 +234,11 @@ def main(argv):
 	print "The acquisition is",scan_duration,"minutes"
 	print "The reconstructed time frame lasts",rec_length/60/1000,"minutes"
 	print "=================================================="
-	
+
 	if not os.path.exists(out_dir):
 		os.makedirs(out_dir)
 
-	################## Load measurement data: 
+	################## Load measurement data:
 	prompts_file = Path(out_dir+'prompts[%d-%d]min.h5'%(ts,te))
 	random_file = Path(out_dir+'randoms[%d-%d]min.h5'%(ts,te))
 	print "\n\nLoading prompts and randoms ..."
@@ -256,7 +254,7 @@ def main(argv):
 	print "\nLoading sensitivity ..."
 	pet.import_sensitivity(sensitivity_file)
 	print "Done!"
-	################## Import smoothed randoms: 
+	################## Import smoothed randoms:
 	print "\nLoading smoothed randoms ..."
 	#print str(scan_duration*60*1000)
 	#print pet.prompts.get_duration()
@@ -265,12 +263,12 @@ def main(argv):
 	print "Done!"
 	################## Import scatter estimate:
 	print "\nLoading scatter estimate ..."
-	#pet.import_scatter(scatter_file,duration_ms=scan_duration*60*1000) 
-	pet.import_scatter(scatter_file) 
+	#pet.import_scatter(scatter_file,duration_ms=scan_duration*60*1000)
+	pet.import_scatter(scatter_file)
 	print "Done!"
 	################## Load attenuation:
 	print "\nLoading attenuation ..."
-	pet.import_attenuation(filename=human_attenuation_file, 
+	pet.import_attenuation(filename=human_attenuation_file,
 			      filename_hardware=hw_attenuation_file)
 	print "Done!"
 	################## Project the attenuation map for the purpose of visualizing it:
@@ -278,7 +276,7 @@ def main(argv):
 	attenuation_projection = pet.project_attenuation(pet.attenuation)
 	print "Done!" +"\n\n"
 
-	################## Visualize prompts, randoms, scatter, sensitivity and the projection of the attenuation 
+	################## Visualize prompts, randoms, scatter, sensitivity and the projection of the attenuation
 	"""
 	    figure(figsize=[14,6])
 	    subplot(1,3,1); imshow(flipud(pet.prompts.to_nd_array()[0,5,:,:].transpose()),cmap='hot')
@@ -286,30 +284,31 @@ def main(argv):
 	    subplot(1,3,3); imshow(flipud(pet.scatter.to_nd_array()[0,5,:,:].transpose()),cmap='hot')
 	    figure(figsize=[14,6])
 	    subplot(1,3,1); imshow(flipud(pet.sensitivity.to_nd_array()[0,5,:,:].transpose()),cmap='gray')
-	    subplot(1,3,2); imshow(flipud(pet.attenuation_projection.to_nd_array()[0,5,:,:].transpose()),cmap='gray')    
+	    subplot(1,3,2); imshow(flipud(pet.attenuation_projection.to_nd_array()[0,5,:,:].transpose()),cmap='gray')
 	    subplot(1,3,3); pet.quick_inspect()
 	"""
 
 
 	## ITERATIVE RECONSTRUCTION ============================================================================================
 
-	# Set parameters for OSEM reconstruction: 
-	# Standard 3 iterations of fully 3D OSEM with 21 subsets 
+	# Set parameters for OSEM reconstruction:
+	# Standard 3 iterations of fully 3D OSEM with 21 subsets
 	subset_size = pet.binning.N_axial / subs_num
 	iterations = (pet.binning.N_axial / subset_size) * iter_num
 	subset_mode = "ordered_axial"
 
-	# Occiput allows you to optionally set freely the position of the reconstruction volume; set flag to True to experiment
+	# Occiput allows you to optionally set freely the position of the reconstruction volume;
+    # TODO : give option to set flag to True
 	experiment_with_transforms = False
 	from occiput.Reconstruction.PET import RigidTransform
-	if experiment_with_transforms: 
+	if experiment_with_transforms:
 	    r = RigidTransform( [0,0,0,0,0,pi/4] )
-	else: 
+	else:
 	    r = RigidTransform( [0,0,0,0,0,0] )
 
 	pet.set_activity_shape([Nx,Ny,Nz])
 	pet.set_activity_size([pet.activity_shape[0]*Rx,  pet.activity_shape[1]*Ry,  pet.activity_shape[2]*Rz])
-	
+
 	print "================================================== "
 	print "RECONSTRUCTION DETAILS:"
 	print "Size (mm): " + str(pet.activity_size)
@@ -317,8 +316,8 @@ def main(argv):
 	print "Resolution (mm/px): " + str(np.asarray(pet.activity_size) / np.asarray(pet.activity_shape))
 	print "==================================================\n\n"
 
-	print "OSEM RECONSTRUCTION:"					  
-	activity_recon =    osem_reconstruction(pet, iterations=iterations, subset_mode=subset_mode, 
+	print "OSEM RECONSTRUCTION:"
+	activity_recon =    osem_reconstruction(pet, iterations=iterations, subset_mode=subset_mode,
 						  attenuation_projection = attenuation_projection,
 						  subset_size=subset_size, transformation=r, SaveAll = SaveAll,
 						  SaveDisk = SaveDisk, savepath=out_dir)
@@ -326,7 +325,7 @@ def main(argv):
 
 
 	"""
-	# DISPALY LAST ITERATION RESULT
+	# DISPLAY LAST ITERATION RESULT
 	temp = activity_recon.data
 	temp = np.flip(temp,0)  #U-D
 	temp = np.flip(temp,1)  #L-R
