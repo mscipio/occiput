@@ -304,8 +304,12 @@ def main(argv):
         print "---> shape: " + str(pet.sensitivity.data.shape)
         print "Done!"
     else:
-        sensitivity = ideal_prompts.copy()
-        sensitivity.data = 0.0 * sensitivity.data + 1
+        #sensitivity = ideal_prompts.copy()
+        #sensitivity.data = 0.0 * sensitivity.data + 1
+        # load a default sensitivity
+        pet.import_sensitivity(
+            '/space/mercury/2/users/occiput/Douglas/simulation/01/norm3d_00.h33')
+        sensitivity = pet.sensitivity
 
     # TODO: CHECK DURATION OF SCATTER AND RANDOMS SO THAT THEY ARE CORRECTLY SCALED WITH SIMULATED ACTIVITY
     # Load expected randoms and scatter (check for future import file type)
