@@ -275,7 +275,7 @@ def main(argv):
     print "Done!"
     # Import scatter estimate:
     print "\nLoading scatter estimate ..."
-    pet.import_scatter(scatter_file, duration_ms=time_range_ms)
+    pet.import_scatter(scatter_file, duration_ms=rec_length)
     # pet.import_scatter(scatter_file)
     print "Done!"
     # Load attenuation:
