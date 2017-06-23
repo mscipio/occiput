@@ -263,26 +263,31 @@ def main(argv):
         pet.export_prompts(out_dir + 'prompts[%d-%d]min.h5' % (ts, te))
         pet.export_randoms(out_dir + 'randoms[%d-%d]min.h5' % (ts, te))
     print "Done!"
+
     # Load sensitivity:
     print "\nLoading sensitivity ..."
     pet.import_sensitivity(sensitivity_file)
     print "Done!"
-    # Import smoothed randoms:
-    print "\nLoading smoothed randoms ..."
-    # import_randoms(pet,smooth_random_file,duration_ms=time_range_ms)
+
     if ((rec_length / 60 / 1000) == scan_duration):
+        # Import smoothed randoms:
+        print "\nLoading smoothed randoms ..."
+        # import_randoms(pet,smooth_random_file,duration_ms=time_range_ms)
         pet.import_randoms(smooth_random_file)
-    print "Done!"
+        print "Done!"
+
     # Import scatter estimate:
     print "\nLoading scatter estimate ..."
     pet.import_scatter(scatter_file, duration_ms=rec_length)
     # pet.import_scatter(scatter_file)
     print "Done!"
+
     # Load attenuation:
     print "\nLoading attenuation ..."
     pet.import_attenuation(filename=human_attenuation_file,
                            filename_hardware=hw_attenuation_file)
     print "Done!"
+
     # Project the attenuation map for the purpose of visualizing it:
     print "\nProjecting attenuation map in sinogram space ..."
     attenuation_projection = pet.project_attenuation(pet.attenuation)
