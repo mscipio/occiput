@@ -257,7 +257,7 @@ def main(argv):
     print "\n\nLoading prompts and randoms ..."
     if (prompts_file.is_file()) and (random_file.is_file()):
         pet.import_prompts(out_dir + 'prompts[%d-%d]min.h5' % (ts, te))
-        pet.import_randoms(out_dir + 'randoms_[%d-%d]min.h5' % (ts, te))
+        pet.import_randoms(out_dir + 'randoms[%d-%d]min.h5' % (ts, te))
     else:
         pet.import_listmode(listmode_file, time_range_ms=time_range_ms)
         pet.export_prompts(out_dir + 'prompts[%d-%d]min.h5' % (ts, te))
