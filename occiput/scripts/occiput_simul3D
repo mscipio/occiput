@@ -303,7 +303,7 @@ def main(argv):
         sensitivity = pet.sensitivity
         print "---> shape: " + str(pet.sensitivity.data.shape)
         print "Done!"
-    else:
+    else:  # TODO
         #sensitivity = ideal_prompts.copy()
         #sensitivity.data = 0.0 * sensitivity.data + 1
         # load a default sensitivity
@@ -352,10 +352,10 @@ def main(argv):
 
     # ITERATIVE RECONSTRUCTION ============================================================================================
     print "\nSetup reconstruction options ..."
-    if addSensitivity:
-        pet.set_sensitivity(sensitivity)
     pet.set_prompts(noisy_prompts)
     pet.prompts.save_to_file('%s/noisy_prompts.nii' % out_dir)
+    if addSensitivity:
+        pet.set_sensitivity(sensitivity)
     if addRandom:
         pet.set_randoms(randoms)
     if addScatter:
