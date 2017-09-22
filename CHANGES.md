@@ -13,6 +13,13 @@
     - force the xlim of the plot to match the shape of prompts data (this helps if we want to plot both alongside, to study consistency in scanner sensitivity matrix).
 - Fixed a **critical issue** regarding **import_randoms** function in *occiput.Reconstruction.PET*.**PET.py**: old version caused an implicit conversion from *numpy.float32* to *numpy.float64*, causing error during the reconstruction for compatibility issue with the GPU. Now everything should be properly imported.
 - Similar to previous point, the method **apply_poisson_noise** in *occiput.Reconstruction.PET*.**PET_projection.py**, being based on *numpy.random.Poisson*, caused an implicit casting of prompts.data from *numpy.float32* to *numpy.int64*, making it impossible for the reconstruction code to properly manage input data. Now the ouput of numpy function is correctly recasted to *numpy.float32*.
+- Added templates for function implementing [*** we will need quite some more work to have an actual functioning version ***]:
+    - direct reconstruction of 4D dynamic PET
+    - regularized reconstruction based on a range of different priors (mainly for dynamic time series, but easily adaptable to static scans as well)
+- Minor changes to *occiput.Reconstruction.PET.PET_Static_Scan*.**osem_reconstruction()** in order to:
+    + improve printed output of iteration number (visual feedback)
+    + add a secondary output with stored the intermediate images after each OS-EM iteration(*mainly testing purposes*)
+    + add a boolean flag that enable saving on disk of the output of each iteration (*mainly testing purposes*)
 
 
 ---
